@@ -3,6 +3,7 @@ import {
   initWheelPicker, resetWheelToNow, getWheelValues,
   setupNumberModeToggle, getNumMode, resetNumberMode
 } from './ui.js';
+import { abortAIRequest } from './api.js';
 
 // ==================== STATE MACHINE ====================
 
@@ -29,6 +30,10 @@ const $pages = {
 // ==================== ROUTER ====================
 
 export function navigateTo(pageName) {
+  // Abort in-flight AI stream when leaving dashboard
+  if (state.page === 'dashboard' && pageName !== 'dashboard') {
+    abortAIRequest();
+  }
   Object.keys($pages).forEach(function (k) {
     $pages[k].classList.remove('active');
   });

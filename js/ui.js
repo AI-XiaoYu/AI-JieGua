@@ -1,4 +1,13 @@
 import { state, navigateTo } from './router.js';
+import { MODE, loadSettings, sendAIRequest, abortAIRequest } from './api.js';
+
+// ==================== UTILS ====================
+
+function escapeHtml(str) {
+  var div = document.createElement('div');
+  div.appendChild(document.createTextNode(str));
+  return div.innerHTML;
+}
 
 // ==================== MOCK DATA ====================
 
@@ -343,30 +352,96 @@ function wireDashboardButtons(data) {
     }
   };
 
-  // AI button
+  // AI button — toggle between start / abort
   var btnAI = document.getElementById('btnAI');
-  btnAI.onclick = function () {
+  var _streaming = false;
+
+  function resetAIButton() {
+    _streaming = false;
+    btnAI.textContent = '⚡ 启动 AI 断卦';
+    btnAI.disabled = false;
+  }
+
+  function startAIStream() {
     var term = document.getElementById('terminalOutput');
     term.innerHTML = '<span class="text-cyan-400/70">$</span> <span class="text-gray-500">AI 引擎连接中...</span>';
-    btnAI.textContent = '⏳ 处理中...';
-    btnAI.disabled = true;
+    _streaming = true;
+    btnAI.textContent = '■ 中止推演';
+    btnAI.disabled = false;
 
-    setTimeout(function () {
-      term.innerHTML =
-        '<span class="text-green-400/50">$</span> <span class="text-gray-600">[Mock] AI 断卦引擎尚未接入。</span>\n' +
-        '<span class="text-green-400/50">$</span> <span class="text-gray-600">[Mock] 占问：' + data.question + '</span>\n' +
-        '<span class="text-green-400/50">$</span> <span class="text-gray-600">[Mock] 本卦' + data.hexagrams[0].name +
-        '，' + data.hexagrams[0].desc + '</span>\n' +
-        '<span class="text-green-400/50">$</span> <span class="text-gray-600">[Mock] 此处将接入 LLM 流式输出...</span>';
-      btnAI.textContent = '⚡ 启动 AI 断卦';
+    var settings = loadSettings();
+    var hexInfo = data.hexagrams.map(function (h) {
+      var yaos = [];
+      for (var i = 5; i >= 0; i--) {
+        var yaoName = ['初', '二', '三', '四', '五', '上'][i];
+        var isYang = h.lines[i] === 1;
+        var isChanging = (i + 1) === h.changingLine;
+        yaos.push(yaoName + '爻' + (isYang ? '阳' : '阴') + (isChanging ? '（动爻）' : ''));
+      }
+      return h.tag + '：' + h.name + ' (#' + h.idx + ')\n  ' + yaos.join(' / ');
+    }).join('\n');
+
+    var userPrompt = '占问事由：' + data.question + '\n\n卦象数据：\n' + hexInfo;
+
+    var contentEl = null;
+    var firstToken = true;
+
+    sendAIRequest(settings.mode, {
+      url: settings.url,
+      apiKey: settings.apiKey,
+      model: settings.model
+    }, [
+      { role: 'user', content: userPrompt }
+    ], function (delta, fullContent) {
+      // onToken — stream each delta into the terminal
+      if (firstToken) {
+        term.innerHTML = '';
+        contentEl = document.createElement('span');
+        contentEl.className = 'text-green-400';
+        term.appendChild(contentEl);
+        firstToken = false;
+      }
+      if (contentEl) {
+        contentEl.textContent = fullContent;
+      }
+      term.scrollTop = term.scrollHeight;
+    }).then(function (result) {
+      if (result.aborted) {
+        if (contentEl) {
+          contentEl.textContent += '\n\n$ [System] 链路传输已手动中止...';
+        } else {
+          term.innerHTML = '<span class="text-gray-500">$ [System] 链路传输已手动中止...</span>';
+        }
+        resetAIButton();
+        return;
+      }
+      if (!contentEl) {
+        term.innerHTML = '<span class="text-green-400/50">$</span> <span class="text-green-400">' + escapeHtml(result.content).replace(/\n/g, '<br>') + '</span>';
+      }
+      resetAIButton();
+    }).catch(function (err) {
+      term.innerHTML = '<span class="text-red-400/70">$</span> <span class="text-red-400/60">[Error] ' + escapeHtml(err.message || '未知错误') + '</span>';
+      btnAI.textContent = '⚡ 重试 AI 断卦';
       btnAI.disabled = false;
-    }, 1200);
+      _streaming = false;
+    });
+  }
+
+  btnAI.onclick = function () {
+    if (_streaming) {
+      abortAIRequest();
+      btnAI.textContent = '⏳ 中止中...';
+      btnAI.disabled = true;
+    } else {
+      startAIStream();
+    }
   };
 
   // New reading button
   var btnNew = document.getElementById('btnNewReading');
   if (btnNew) {
     btnNew.onclick = function () {
+      abortAIRequest();
       state.engine = null;
       state.method = null;
       state.params = { question: '', time: '', numbers: [] };

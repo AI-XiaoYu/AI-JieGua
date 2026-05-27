@@ -1,4 +1,5 @@
 import { initRouter } from './router.js';
+import { initSettings } from './settings.js';
 
 console.log('[Scale OS] main.js loaded');
 
@@ -25,6 +26,7 @@ function bootSystem() {
 
   try {
     initRouter();
+    initSettings();
   } catch (e) {
     console.error('[Scale OS] Router init failed:', e);
   }
