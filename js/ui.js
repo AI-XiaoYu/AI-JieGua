@@ -403,12 +403,26 @@ function renderCompactYao(yang, isChanging) {
 function renderJudgments(data) {
   var list = document.getElementById('judgmentsList');
   list.innerHTML = '';
+
+  // Build dynamic text from 本卦 / 互卦 / 变卦
+  var parts = [];
+  var main3 = data.hexagrams.slice(0, 3);
+  for (var i = 0; i < main3.length; i++) {
+    var h = main3[i];
+    parts.push(h.tag + '（' + h.name + '）：' + h.desc);
+  }
+  // Append tiYong analysis if available
+  if (data.tiYong && data.tiYong.relation) {
+    var ty = data.tiYong;
+    parts.push('体' + ty.ti + '用' + ty.yong + '，' + ty.relation.text + '（' + ty.relation.level + '）。' + ty.relation.detail);
+  }
+
   var item = document.createElement('div');
   item.className = 'judge-item';
   item.innerHTML =
     '<span class="judge-tag">断语</span>' +
     '<span class="judge-text">' +
-    '【聚合断语】凡事以静制动，需待时机，不可冒进（水天需）。在此过程中，虽偶有睽乖之疏离（火泽睽），但若能坚持正道、以柔克刚，终能如井一般，寻得源头活水，滋养而不穷（水风井）。此卦虽含讼争之险，然若守中则吉（天水讼）。暗中潜藏着光明上进、昼日三接之福泽（火地晋）。小吉。' +
+    '【聚合断语】' + parts.join('  ') +
     '</span>';
   list.appendChild(item);
 }
