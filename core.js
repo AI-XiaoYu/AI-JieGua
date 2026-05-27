@@ -195,6 +195,30 @@ window.Paipan = (function () {
     return HEXAGRAM_LOOKUP[key] || { name: '未知卦', idx: 0, desc: '' };
   }
 
+  function getEmptyBranch(dayGZ) {
+    var stem = dayGZ.charAt(0);
+    var branch = dayGZ.charAt(1);
+    var branchNum = BRANCH_MAP[branch];
+    var stemNum = STEM_MAP[stem];
+    var jiaBranch = branchNum - (stemNum - 1);
+    if (jiaBranch <= 0) jiaBranch += 12;
+    var e1 = (jiaBranch + 9) % 12 + 1;
+    var e2 = (jiaBranch + 10) % 12 + 1;
+    var branchNames = {1:'子',2:'丑',3:'寅',4:'卯',5:'辰',6:'巳',7:'午',8:'未',9:'申',10:'酉',11:'戌',12:'亥'};
+    return branchNames[e1] + branchNames[e2];
+  }
+
+  function getShengKe(ti, yong) {
+    if (ti === yong) return { text: '体用比和', level: '大吉', detail: '体用同属' + ti + '，比和相旺，万事顺遂。' };
+    var sheng = { '金':'水', '水':'木', '木':'火', '火':'土', '土':'金' };
+    var ke   = { '金':'木', '木':'土', '土':'水', '水':'火', '火':'金' };
+    if (sheng[ti] === yong) return { text: '体生用', level: '小凶', detail: '体' + ti + '生用' + yong + '，自身泄气耗力，事多劳碌。' };
+    if (sheng[yong] === ti) return { text: '用生体', level: '吉',   detail: '用' + yong + '生体' + ti + '，外境相助，贵人扶持，事易成。' };
+    if (ke[ti]   === yong) return { text: '体克用', level: '小吉', detail: '体' + ti + '克用' + yong + '，需付出努力方可掌控局面。' };
+    if (ke[yong]   === ti) return { text: '用克体', level: '凶',   detail: '用' + yong + '克体' + ti + '，外境压制自身，行事多阻，需谨慎。' };
+    return { text: '未知', level: '', detail: '' };
+  }
+
   // ==================== PUBLIC API ====================
 
   return {
@@ -217,5 +241,7 @@ window.Paipan = (function () {
     buildChangedHexagram: buildChangedHexagram,
     yaoToTrigramNum: yaoToTrigramNum,
     getHexagramInfo: getHexagramInfo,
+    getEmptyBranch: getEmptyBranch,
+    getShengKe: getShengKe,
   };
 })();

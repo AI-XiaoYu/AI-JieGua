@@ -11,31 +11,126 @@ function escapeHtml(str) {
 
 // ==================== MOCK DATA ====================
 
-export function buildMockResult() {
-  return {
-    question: state.params.question || '未设事由',
+var _dashboardData = null;
+
+export function buildResult() {
+  var P = window.Paipan;
+  var question = state.params.question || '未设事由';
+  var methodLabel = state.method === 'time' ? '时间起卦' :
+                    state.method === 'number' ? '报数起卦' : '随机起卦';
+
+  var year, month, day, hour;
+  var upperNum, lowerNum, changingLine;
+
+  if (state.method === 'time') {
+    var t = state.params.time;
+    if (t) {
+      var parts = t.split('T');
+      var dParts = parts[0].split('-');
+      year  = parseInt(dParts[0]) || 2026;
+      month = parseInt(dParts[1]) || 1;
+      day   = parseInt(dParts[2]) || 1;
+      hour  = parts[1] ? parseInt(parts[1].split(':')[0]) : 12;
+    } else {
+      var now = new Date();
+      year = now.getFullYear();
+      month = now.getMonth() + 1;
+      day = now.getDate();
+      hour = now.getHours();
+    }
+    var lunarData = P.getLunarData(year, month, day, hour, 0);
+    var yearBranch = P.getBranchNumber(lunarData.yearGZ);
+    var hourBranch = P.getBranchNumber(lunarData.timeGZ);
+    var result = P.calcMeihua(yearBranch, lunarData.lunarMonth, lunarData.lunarDay, hourBranch);
+    upperNum = result.upperNum;
+    lowerNum = result.lowerNum;
+    changingLine = result.changingLine;
+  } else if (state.method === 'number') {
+    var nums = state.params.numbers;
+    if (nums && nums.length >= 3) {
+      upperNum = nums[0] % 8; if (upperNum === 0) upperNum = 8;
+      lowerNum = nums[1] % 8; if (lowerNum === 0) lowerNum = 8;
+      changingLine = nums[2] % 6; if (changingLine === 0) changingLine = 6;
+    } else {
+      upperNum = 1; lowerNum = 1; changingLine = 1;
+    }
+    var now = new Date();
+    year = now.getFullYear();
+    month = now.getMonth() + 1;
+    day = now.getDate();
+    hour = now.getHours();
+  } else {
+    upperNum = Math.floor(Math.random() * 8) + 1;
+    lowerNum = Math.floor(Math.random() * 8) + 1;
+    changingLine = Math.floor(Math.random() * 6) + 1;
+    var now = new Date();
+    year = now.getFullYear();
+    month = now.getMonth() + 1;
+    day = now.getDate();
+    hour = now.getHours();
+  }
+
+  // Lunar data for display (always computed from the year/month/day/hour we have)
+  var lunarData = P.getLunarData(year, month, day, hour, 0);
+  var solarDate = year + '-' + String(month).padStart(2,'0') + '-' + String(day).padStart(2,'0') + ' ' + String(hour).padStart(2,'0') + ':00';
+  var lunarMonthAbs = Math.abs(lunarData.lunarMonth);
+  var lunarDate = lunarData.yearGZ + '年 '
+    + (lunarData.lunarMonth < 0 ? '闰' : '')
+    + P.LUNAR_MONTH_NAMES[lunarMonthAbs] + ' '
+    + P.LUNAR_DAY_NAMES[lunarData.lunarDay] + ' '
+    + lunarData.timeGZ + '时';
+
+  // Build all hexagrams
+  var originalLines = P.buildHexagram(upperNum, lowerNum);
+  var originalInfo  = P.getHexagramInfo(originalLines);
+  var mutualLines   = P.buildMutualHexagram(originalLines);
+  var mutualInfo    = P.getHexagramInfo(mutualLines);
+  var changedLines  = P.buildChangedHexagram(originalLines, changingLine);
+  var changedInfo   = P.getHexagramInfo(changedLines);
+  var zongLines     = originalLines.slice().reverse();
+  var zongInfo      = P.getHexagramInfo(zongLines);
+  var cuoLines      = originalLines.map(function (l) { return l === 1 ? 0 : 1; });
+  var cuoInfo       = P.getHexagramInfo(cuoLines);
+
+  // Trigram elements & palace
+  var origUpperNum = P.yaoToTrigramNum(originalLines.slice(3, 6));
+  var origLowerNum = P.yaoToTrigramNum(originalLines.slice(0, 3));
+  var upperElement = P.TRIGRAM_ELEMENT[origUpperNum];
+  var lowerElement = P.TRIGRAM_ELEMENT[origLowerNum];
+
+  // Body trigram (体卦) = the one WITHOUT the changing line
+  var bodyIsUpper = changingLine > 3; // changing line in upper trigram → lower is 体
+  var tiElement   = bodyIsUpper ? lowerElement : upperElement;
+  var yongElement = bodyIsUpper ? upperElement : lowerElement;
+  var shengKe     = P.getShengKe(tiElement, yongElement);
+
+  var data = {
+    question: question,
     engine: '梅花易数',
-    method: state.method === 'time' ? '时间起卦' :
-            state.method === 'number' ? '报数起卦' : '随机起卦',
-    solarDate: '2026-05-27 14:30',
-    lunarDate: '丙午年 四月十一 未时',
+    method: methodLabel,
+    solarDate: solarDate,
+    lunarDate: lunarDate,
     pillars: {
-      year:  '丙午',
-      month: '癸巳',
-      day:   '戊戌',
-      hour:  '己未',
+      year:  lunarData.yearGZ,
+      month: lunarData.monthGZ,
+      day:   lunarData.dayGZ,
+      hour:  lunarData.timeGZ,
     },
-    empty: '辰巳',
-    originalLines: [1, 1, 1, 0, 1, 0],  // 水天需
-    changingLine: 1,
+    empty: P.getEmptyBranch(lunarData.dayGZ),
+    originalLines: originalLines,
+    changingLine: changingLine,
     hexagrams: [
-      { tag: '本卦', name: '水天需',  idx: 5,  lines: [1,1,1,0,1,0], changingLine: 1, palace: '坤宫', desc: '有孚光亨，贞吉。利涉大川。需待时机，饮食宴乐。' },
-      { tag: '互卦', name: '火泽睽',  idx: 38, lines: [1,1,0,1,0,1], changingLine: -1, palace: '艮宫', desc: '睽，小事吉。乖离之中，求同存异，以柔克刚。' },
-      { tag: '变卦', name: '水风井',  idx: 48, lines: [0,1,1,0,1,0], changingLine: -1, palace: '震宫', desc: '改邑不改井，无丧无得。往来井井，养而不穷。' },
-      { tag: '综卦', name: '天水讼',  idx: 6,  lines: [0,1,0,1,1,1], changingLine: -1, palace: '离宫', desc: '有孚窒惕，中吉终凶。争讼不宁，见大人则利。' },
-      { tag: '错卦', name: '火地晋',  idx: 35, lines: [0,0,0,1,0,1], changingLine: -1, palace: '乾宫', desc: '康侯用锡马蕃庶，昼日三接。光明上进，柔进上行。' },
-    ]
+      { tag: '本卦', name: originalInfo.name, idx: originalInfo.idx, lines: originalLines, changingLine: changingLine, palace: P.TRIGRAM_NATURE[origUpperNum] + '宫', desc: originalInfo.desc },
+      { tag: '互卦', name: mutualInfo.name,    idx: mutualInfo.idx,    lines: mutualLines,   changingLine: -1, palace: P.TRIGRAM_NATURE[P.yaoToTrigramNum(mutualLines.slice(3, 6))] + '宫', desc: mutualInfo.desc },
+      { tag: '变卦', name: changedInfo.name,    idx: changedInfo.idx,   lines: changedLines,  changingLine: -1, palace: P.TRIGRAM_NATURE[P.yaoToTrigramNum(changedLines.slice(3, 6))] + '宫', desc: changedInfo.desc },
+      { tag: '综卦', name: zongInfo.name,       idx: zongInfo.idx,      lines: zongLines,     changingLine: -1, palace: '', desc: zongInfo.desc },
+      { tag: '错卦', name: cuoInfo.name,        idx: cuoInfo.idx,       lines: cuoLines,      changingLine: -1, palace: '', desc: cuoInfo.desc },
+    ],
+    tiYong: { ti: tiElement, yong: yongElement, relation: shengKe },
   };
+
+  _dashboardData = data;
+  return data;
 }
 
 // ==================== TOAST ====================
@@ -204,7 +299,7 @@ export function resetNumberMode() {
 // ==================== PAGE 4: DASHBOARD RENDERING ====================
 
 export function buildDashboard() {
-  var data = buildMockResult();
+  var data = buildResult();
 
   // --- Section A: Metadata ---
   document.getElementById('metaQuestion').textContent = '? ' + data.question;
@@ -323,11 +418,11 @@ function renderJudgments(data) {
 function wireDashboardButtons(data) {
   // Toggle: show palace
   var togPalace = document.getElementById('togglePalace');
-  togPalace.onchange = function () { renderHexRow(buildMockResult()); };
+  togPalace.onchange = function () { renderHexRow(_dashboardData); };
 
   // Toggle: show cuo/zong
   var togCuoZong = document.getElementById('toggleCuoZong');
-  togCuoZong.onchange = function () { renderHexRow(buildMockResult()); };
+  togCuoZong.onchange = function () { renderHexRow(_dashboardData); };
 
   // Copy button
   var btnCopy = document.getElementById('btnCopy');
