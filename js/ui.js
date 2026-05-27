@@ -403,16 +403,14 @@ function renderCompactYao(yang, isChanging) {
 function renderJudgments(data) {
   var list = document.getElementById('judgmentsList');
   list.innerHTML = '';
-  data.hexagrams.forEach(function (h) {
-    var item = document.createElement('div');
-    item.className = 'judge-item';
-    item.innerHTML =
-      '<span class="judge-tag">' + h.tag + '</span>' +
-      '<span class="judge-text">' +
-      '<b class="text-green-400/80">' + h.name + '</b> — ' + h.desc +
-      '</span>';
-    list.appendChild(item);
-  });
+  var item = document.createElement('div');
+  item.className = 'judge-item';
+  item.innerHTML =
+    '<span class="judge-tag">断语</span>' +
+    '<span class="judge-text">' +
+    '【聚合断语】凡事以静制动，需待时机，不可冒进（水天需）。在此过程中，虽偶有睽乖之疏离（火泽睽），但若能坚持正道、以柔克刚，终能如井一般，寻得源头活水，滋养而不穷（水风井）。此卦虽含讼争之险，然若守中则吉（天水讼）。暗中潜藏着光明上进、昼日三接之福泽（火地晋）。小吉。' +
+    '</span>';
+  list.appendChild(item);
 }
 
 function wireDashboardButtons(data) {

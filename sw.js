@@ -1,4 +1,4 @@
-const CACHE = 'paipan-v1';
+const CACHE = 'paipan-v2';
 const URLS = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', (e) => {
