@@ -1,270 +1,431 @@
 (function (P) {
+  // ==================== STATE MACHINE ====================
+
+  var state = {
+    page: 'engine',     // 'engine' | 'method' | 'params' | 'dashboard'
+    engine: null,       // 'meihua'
+    method: null,       // 'time' | 'number' | 'random'
+    params: {
+      question: '',
+      time: '',
+      numbers: []
+    }
+  };
+
   // ==================== DOM REFS ====================
 
-  var $date = document.getElementById('dateInput');
-  var $time = document.getElementById('timeInput');
-  var $btn = document.getElementById('calcBtn');
-  var $results = document.getElementById('results');
-  var $empty = document.getElementById('emptyState');
-  var $pillars = document.getElementById('pillars');
-  var $hexagrams = document.getElementById('hexagrams');
-  var $changingInfo = document.getElementById('changingInfo');
+  var $pages = {
+    engine:   document.getElementById('page-engine'),
+    method:   document.getElementById('page-method'),
+    params:   document.getElementById('page-params'),
+    dashboard: document.getElementById('page-dashboard'),
+  };
+
   var $toast = document.getElementById('toast');
-  var $historySection = document.getElementById('historySection');
-  var $historyList = document.getElementById('historyList');
-  var $clearHistory = document.getElementById('clearHistory');
 
-  // ==================== HELPERS ====================
+  // ==================== MOCK DATA ====================
 
-  function setNow() {
-    var now = new Date();
-    $date.value = now.toISOString().slice(0, 10);
-    $time.value = now.toISOString().slice(11, 16);
+  function buildMockResult() {
+    return {
+      question: state.params.question || '未设事由',
+      engine: '梅花易数',
+      method: state.method === 'time' ? '时间起卦' :
+              state.method === 'number' ? '报数起卦' : '随机起卦',
+      solarDate: '2026-05-27 14:30',
+      lunarDate: '丙午年 四月十一 未时',
+      pillars: {
+        year:  '丙午',
+        month: '癸巳',
+        day:   '戊戌',
+        hour:  '己未',
+      },
+      empty: '辰巳',
+      originalLines: [1, 1, 1, 0, 1, 0],  // 水天需
+      changingLine: 1,
+      hexagrams: [
+        { tag: '本卦', name: '水天需',  idx: 5,  lines: [1,1,1,0,1,0], changingLine: 1, palace: '坤宫', desc: '有孚光亨，贞吉。利涉大川。需待时机，饮食宴乐。' },
+        { tag: '互卦', name: '火泽睽',  idx: 38, lines: [1,1,0,1,0,1], changingLine: -1, palace: '艮宫', desc: '睽，小事吉。乖离之中，求同存异，以柔克刚。' },
+        { tag: '变卦', name: '水风井',  idx: 48, lines: [0,1,1,0,1,0], changingLine: -1, palace: '震宫', desc: '改邑不改井，无丧无得。往来井井，养而不穷。' },
+        { tag: '综卦', name: '天水讼',  idx: 6,  lines: [0,1,0,1,1,1], changingLine: -1, palace: '离宫', desc: '有孚窒惕，中吉终凶。争讼不宁，见大人则利。' },
+        { tag: '错卦', name: '火地晋',  idx: 35, lines: [0,0,0,1,0,1], changingLine: -1, palace: '乾宫', desc: '康侯用锡马蕃庶，昼日三接。光明上进，柔进上行。' },
+      ]
+    };
   }
 
-  function showToast(msg, ms) {
-    if (!ms) ms = 2500;
+  // ==================== ROUTER ====================
+
+  function navigateTo(pageName) {
+    // Hide all pages
+    Object.keys($pages).forEach(function (k) {
+      $pages[k].classList.remove('active');
+    });
+
+    // Force reflow to restart animation
+    void $pages[pageName].offsetWidth;
+
+    // Show target page
+    $pages[pageName].classList.add('active');
+    state.page = pageName;
+
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Page-specific setup
+    if (pageName === 'params') setupParamsPage();
+    if (pageName === 'dashboard') buildDashboard();
+  }
+
+  function goBack(target) {
+    navigateTo(target);
+  }
+
+  // ==================== TOAST ====================
+
+  function showToast(msg, type, ms) {
+    if (!ms) ms = 2200;
     $toast.textContent = msg;
-    $toast.classList.add('show');
+    $toast.className = 'toast show' + (type === 'success' ? ' success' : '');
     clearTimeout($toast._t);
-    $toast._t = setTimeout(function () { $toast.classList.remove('show'); }, ms);
+    $toast._t = setTimeout(function () { $toast.className = 'toast'; }, ms);
   }
 
-  // ==================== RENDER ====================
+  // ==================== PAGE 1: ENGINE ====================
 
-  function renderYaoLine(yang, isChanging, lineNum) {
-    var div = document.createElement('div');
-    div.className = 'yao-line' + (isChanging ? ' yao-changing' : '');
-
-    var marker = document.createElement('span');
-    marker.className = 'yao-marker';
-    marker.textContent = lineNum === 1 ? '初' : lineNum === 6 ? '上' : ['', '', '二', '三', '四', '五', ''][lineNum];
-    div.appendChild(marker);
-
-    if (yang) {
-      var bar = document.createElement('div');
-      bar.className = 'yao-yang';
-      div.appendChild(bar);
-    } else {
-      var wrap = document.createElement('div');
-      wrap.className = 'yao-yin';
-      var h1 = document.createElement('div');
-      h1.className = 'yao-yin-half';
-      var h2 = document.createElement('div');
-      h2.className = 'yao-yin-half';
-      wrap.appendChild(h1);
-      wrap.appendChild(h2);
-      div.appendChild(wrap);
-    }
-
-    return div;
-  }
-
-  function renderHexagramSymbol(lines, changingLine) {
-    var container = document.createElement('div');
-    container.className = 'flex flex-col-reverse items-center py-2';
-    for (var i = 0; i < 6; i++) {
-      var isChanging = (i + 1) === changingLine;
-      container.appendChild(renderYaoLine(lines[i] === 1, isChanging, i + 1));
-    }
-    return container;
-  }
-
-  function renderPillar(label, ganzhi) {
-    var div = document.createElement('div');
-    div.className = 'bg-[#0d0d0d] border border-[#1a2a1a] rounded-lg p-2.5 text-center';
-    div.innerHTML =
-      '<div class="text-[10px] text-gray-600 mb-1 tracking-wider">' + label + '</div>' +
-      '<div class="text-lg font-bold tracking-widest glow-text">' + ganzhi + '</div>';
-    return div;
-  }
-
-  function renderHexCard(title, lines, changingLine, extraClass) {
-    var info = P.getHexagramInfo(lines);
-    var card = document.createElement('div');
-    card.className = 'hex-card ' + (extraClass || '');
-
-    var header = document.createElement('div');
-    header.className = 'text-center mb-3';
-    var label = document.createElement('div');
-    label.className = 'text-[10px] text-gray-600 tracking-widest mb-1';
-    label.innerHTML = title;
-    var name = document.createElement('div');
-    name.className = 'text-base font-bold tracking-wider glow-text';
-    name.textContent = info.name;
-    var idx = document.createElement('div');
-    idx.className = 'text-xs text-gray-600';
-    idx.textContent = '第' + info.idx + '卦';
-    header.appendChild(label);
-    header.appendChild(name);
-    header.appendChild(idx);
-    card.appendChild(header);
-
-    card.appendChild(renderHexagramSymbol(lines, changingLine));
-
-    if (info.desc) {
-      var desc = document.createElement('p');
-      desc.className = 'text-xs text-gray-500 text-center mt-2 leading-relaxed px-1';
-      desc.textContent = info.desc;
-      card.appendChild(desc);
-    }
-
-    return card;
-  }
-
-  function renderResults(originalLines, mutualLines, changedLines, changingLine, lunarData) {
-    $pillars.innerHTML = '';
-    $pillars.appendChild(renderPillar('年柱', lunarData.yearGZ));
-    $pillars.appendChild(renderPillar('月柱', lunarData.monthGZ));
-    $pillars.appendChild(renderPillar('日柱', lunarData.dayGZ));
-    $pillars.appendChild(renderPillar('时柱', lunarData.timeGZ));
-
-    $hexagrams.innerHTML = '';
-    $hexagrams.appendChild(renderHexCard('&#9775; 本 卦', originalLines, changingLine, ''));
-    $hexagrams.appendChild(renderHexCard('&#9775; 互 卦', mutualLines, -1, ''));
-    $hexagrams.appendChild(renderHexCard('&#9775; 变 卦', changedLines, -1, ''));
-
-    var origInfo = P.getHexagramInfo(originalLines);
-    var changedInfo = P.getHexagramInfo(changedLines);
-    $changingInfo.classList.remove('hidden');
-    $changingInfo.innerHTML =
-      '<div class="text-xs text-gray-500 tracking-widest mb-2">动 爻 信 息</div>' +
-      '<div class="text-sm text-cyan-400 glow-cyan leading-relaxed">' +
-      '第 <span class="font-bold">' + changingLine + '</span> 爻动' +
-      ' &nbsp;·&nbsp; ' + origInfo.name + ' &rarr; ' + changedInfo.name +
-      '</div>' +
-      '<div class="text-xs text-gray-600 mt-1">' +
-      P.TRIGRAM_SHORT[P.yaoToTrigramNum(originalLines.slice(0, 3))] + '下' +
-      P.TRIGRAM_SHORT[P.yaoToTrigramNum(originalLines.slice(3, 6))] + '上' +
-      ' &rarr; ' +
-      P.TRIGRAM_SHORT[P.yaoToTrigramNum(changedLines.slice(0, 3))] + '下' +
-      P.TRIGRAM_SHORT[P.yaoToTrigramNum(changedLines.slice(3, 6))] + '上' +
-      '</div>';
-
-    $empty.classList.add('hidden');
-    $results.classList.remove('hidden');
-  }
-
-  // ==================== HISTORY ====================
-
-  var HISTORY_KEY = 'paipan_history';
-  var MAX_HISTORY = 20;
-
-  function loadHistory() {
-    try {
-      return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-    } catch (e) { return []; }
-  }
-
-  function saveHistory(entry) {
-    var hist = loadHistory();
-    var idx = -1;
-    for (var i = 0; i < hist.length; i++) {
-      if (hist[i].iso === entry.iso) { idx = i; break; }
-    }
-    if (idx >= 0) hist.splice(idx, 1);
-    hist.unshift(entry);
-    if (hist.length > MAX_HISTORY) hist.pop();
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(hist));
-    renderHistory();
-  }
-
-  function renderHistory() {
-    var hist = loadHistory();
-    if (hist.length === 0) {
-      $historySection.classList.add('hidden');
-      return;
-    }
-    $historySection.classList.remove('hidden');
-    $historyList.innerHTML = '';
-    hist.forEach(function (h) {
-      var div = document.createElement('div');
-      div.className = 'history-item flex justify-between items-center text-sm';
-      div.innerHTML =
-        '<span class="text-gray-400">' + h.iso.replace('T', ' ') + '</span>' +
-        '<span class="text-green-400 font-bold tracking-wider">' + h.hexName +
-        ' <span class="text-[10px] text-gray-600">#' + h.hexIdx + '</span></span>';
-      div.addEventListener('click', function () {
-        var parts = h.iso.split('T');
-        $date.value = parts[0];
-        $time.value = parts[1] ? parts[1].slice(0, 5) : '12:00';
-        calculate();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+  function setupEnginePage() {
+    var cards = document.querySelectorAll('#page-engine .engine-card.active');
+    for (var i = 0; i < cards.length; i++) {
+      cards[i].addEventListener('click', function () {
+        var engine = this.getAttribute('data-engine');
+        if (engine === 'meihua') {
+          state.engine = 'meihua';
+          navigateTo('method');
+        }
       });
-      $historyList.appendChild(div);
+    }
+  }
+
+  // ==================== PAGE 2: METHOD ====================
+
+  function setupMethodPage() {
+    var cards = document.querySelectorAll('#page-method .method-card');
+    for (var i = 0; i < cards.length; i++) {
+      cards[i].addEventListener('click', function () {
+        var method = this.getAttribute('data-method');
+        state.method = method;
+
+        if (method === 'random') {
+          // Random: generate mock data directly, skip params
+          state.params.question = '随机起卦';
+          state.params.time = '';
+          state.params.numbers = [];
+          navigateTo('dashboard');
+        } else {
+          navigateTo('params');
+        }
+      });
+    }
+
+    // Back buttons
+    var backBtns = document.querySelectorAll('#page-method .back-btn');
+    for (var j = 0; j < backBtns.length; j++) {
+      backBtns[j].addEventListener('click', function () {
+        goBack(this.getAttribute('data-back'));
+      });
+    }
+  }
+
+  // ==================== PAGE 3: PARAMS ====================
+
+  function setupParamsPage() {
+    // Show/hide panels based on method
+    var panelTime = document.getElementById('panel-time');
+    var panelNumber = document.getElementById('panel-number');
+
+    panelTime.classList.add('hidden');
+    panelNumber.classList.add('hidden');
+
+    if (state.method === 'time') {
+      panelTime.classList.remove('hidden');
+    } else if (state.method === 'number') {
+      panelNumber.classList.remove('hidden');
+    }
+
+    // Back buttons
+    var backBtns = document.querySelectorAll('#page-params .back-btn');
+    for (var j = 0; j < backBtns.length; j++) {
+      backBtns[j].onclick = function () {
+        goBack(this.getAttribute('data-back'));
+      };
+    }
+  }
+
+  function setupParamsEvents() {
+    // "此刻" button - fill current time
+    var btnNow = document.getElementById('btnNow');
+    if (btnNow) {
+      btnNow.onclick = function () {
+        var now = new Date();
+        var iso = now.getFullYear() + '-' +
+          String(now.getMonth() + 1).padStart(2, '0') + '-' +
+          String(now.getDate()).padStart(2, '0') + 'T' +
+          String(now.getHours()).padStart(2, '0') + ':' +
+          String(now.getMinutes()).padStart(2, '0');
+        document.getElementById('paramTime').value = iso;
+      };
+    }
+
+    // Submit button
+    var btnSubmit = document.getElementById('btnSubmit');
+    if (btnSubmit) {
+      btnSubmit.onclick = function () {
+        var question = document.getElementById('paramQuestion').value.trim();
+        if (!question) {
+          showToast('请输入占问事由');
+          return;
+        }
+        state.params.question = question;
+
+        if (state.method === 'time') {
+          state.params.time = document.getElementById('paramTime').value;
+        } else if (state.method === 'number') {
+          var n1 = parseInt(document.getElementById('paramNum1').value) || 0;
+          var n2 = parseInt(document.getElementById('paramNum2').value) || 0;
+          var n3 = parseInt(document.getElementById('paramNum3').value) || 0;
+          if (!n1 || !n2 || !n3) {
+            showToast('请输入三个有效数字');
+            return;
+          }
+          state.params.numbers = [n1, n2, n3];
+        }
+
+        navigateTo('dashboard');
+      };
+    }
+  }
+
+  // ==================== PAGE 4: DASHBOARD RENDERING ====================
+
+  function buildDashboard() {
+    var data = buildMockResult();
+
+    // --- Section A: Metadata ---
+    document.getElementById('metaQuestion').textContent = '? ' + data.question;
+    var badge = document.getElementById('metaBadge');
+    badge.textContent = data.engine + ' · ' + data.method;
+    badge.className = 'text-[10px] px-2 py-0.5 rounded border border-[#1a3a1a] text-green-400/70';
+
+    document.getElementById('metaSolar').textContent = data.solarDate;
+    document.getElementById('metaLunar').textContent = data.lunarDate;
+    document.getElementById('metaPillars').textContent =
+      data.pillars.year + ' ' + data.pillars.month + ' ' + data.pillars.day + ' ' + data.pillars.hour;
+    document.getElementById('metaEmpty').textContent = data.empty;
+
+    // --- Section B: Hexagram Graphics ---
+    renderHexRow(data);
+
+    // --- Section C: Judgments ---
+    renderJudgments(data);
+
+    // --- Section D: Terminal ---
+    document.getElementById('terminalOutput').innerHTML =
+      '<span class="text-green-400/50">$</span> 准备就绪。点击"启动 AI 断卦"开始推演...';
+
+    // Reset copy button
+    var btnCopy = document.getElementById('btnCopy');
+    btnCopy.textContent = '📋 复制卦象';
+    btnCopy.classList.remove('copied');
+
+    // Wire up dashboard buttons
+    wireDashboardButtons(data);
+  }
+
+  function renderHexRow(data) {
+    var row = document.getElementById('hexRow');
+    row.innerHTML = '';
+
+    var showCuoZong = document.getElementById('toggleCuoZong').checked;
+    var showPalace = document.getElementById('togglePalace').checked;
+
+    var hexesToShow = showCuoZong ? data.hexagrams : data.hexagrams.slice(0, 3);
+
+    hexesToShow.forEach(function (h) {
+      var card = document.createElement('div');
+      card.className = 'hex-mini-card' + (h.changingLine > 0 ? ' yao-changing-highlight' : '');
+
+      // Hexagram name
+      var nameDiv = document.createElement('div');
+      nameDiv.className = 'text-xs font-bold tracking-wider glow-text mb-1';
+      nameDiv.textContent = h.name;
+      card.appendChild(nameDiv);
+
+      // Tag
+      var tagDiv = document.createElement('div');
+      tagDiv.className = 'text-[9px] text-gray-600 mb-2';
+      tagDiv.textContent = h.tag + ' #' + h.idx;
+      card.appendChild(tagDiv);
+
+      // Palace (if toggled)
+      if (showPalace) {
+        var palDiv = document.createElement('div');
+        palDiv.className = 'text-[9px] text-cyan-400/50 mb-1.5';
+        palDiv.textContent = h.palace;
+        card.appendChild(palDiv);
+      }
+
+      // Yao lines (compact, top to bottom)
+      var yaoContainer = document.createElement('div');
+      yaoContainer.className = 'flex flex-col items-center';
+      for (var i = 5; i >= 0; i--) {
+        var isChanging = (i + 1) === h.changingLine;
+        yaoContainer.appendChild(renderCompactYao(h.lines[i] === 1, isChanging));
+      }
+      card.appendChild(yaoContainer);
+
+      row.appendChild(card);
     });
   }
 
-  function clearHistory() {
-    localStorage.removeItem(HISTORY_KEY);
-    renderHistory();
+  function renderCompactYao(yang, isChanging) {
+    var line = document.createElement('div');
+    line.className = 'yao-compact-line' + (isChanging ? ' yao-compact-changing' : '');
+
+    if (yang) {
+      var bar = document.createElement('div');
+      bar.className = 'yao-compact-yang';
+      bar.style.flexShrink = '0';
+      line.appendChild(bar);
+    } else {
+      var wrap = document.createElement('div');
+      wrap.className = 'yao-compact-yin';
+      var h1 = document.createElement('div');
+      h1.className = 'yao-compact-yin-half';
+      h1.style.flexShrink = '0';
+      var h2 = document.createElement('div');
+      h2.className = 'yao-compact-yin-half';
+      h2.style.flexShrink = '0';
+      wrap.appendChild(h1);
+      wrap.appendChild(h2);
+      line.appendChild(wrap);
+    }
+    return line;
   }
 
-  // ==================== MAIN ====================
+  function renderJudgments(data) {
+    var list = document.getElementById('judgmentsList');
+    list.innerHTML = '';
+    data.hexagrams.forEach(function (h) {
+      var item = document.createElement('div');
+      item.className = 'judge-item';
+      item.innerHTML =
+        '<span class="judge-tag">' + h.tag + '</span>' +
+        '<span class="judge-text">' +
+        '<b class="text-green-400/80">' + h.name + '</b> — ' + h.desc +
+        '</span>';
+      list.appendChild(item);
+    });
+  }
 
-  function calculate() {
-    var dateVal = $date.value;
-    var timeVal = $time.value || '12:00';
+  function wireDashboardButtons(data) {
+    // Toggle: show palace
+    var togPalace = document.getElementById('togglePalace');
+    togPalace.onchange = function () { renderHexRow(buildMockResult()); };
 
-    if (!dateVal) {
-      showToast('请选择日期');
-      return;
-    }
+    // Toggle: show cuo/zong
+    var togCuoZong = document.getElementById('toggleCuoZong');
+    togCuoZong.onchange = function () { renderHexRow(buildMockResult()); };
 
-    try {
-      var dateParts = dateVal.split('-').map(Number);
-      var timeParts = timeVal.split(':').map(Number);
-      var y = dateParts[0], m = dateParts[1], d = dateParts[2];
-      var hh = timeParts[0], mm = timeParts[1];
+    // Copy button
+    var btnCopy = document.getElementById('btnCopy');
+    btnCopy.onclick = function () {
+      var text = data.hexagrams.map(function (h) {
+        return h.tag + ': ' + h.name + ' (#' + h.idx + ') — ' + h.desc;
+      }).join('\n');
 
-      if (!y || !m || !d) throw new Error('日期格式错误');
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(function () {
+          btnCopy.textContent = '已复制 ✓';
+          btnCopy.classList.add('copied');
+          setTimeout(function () {
+            btnCopy.textContent = '📋 复制卦象';
+            btnCopy.classList.remove('copied');
+          }, 2000);
+        }).catch(function () {
+          showToast('复制失败，请手动复制');
+        });
+      } else {
+        showToast('复制失败，请手动复制');
+      }
+    };
 
-      var lunarData = P.getLunarData(y, m, d, hh || 12, mm || 0);
+    // AI button
+    var btnAI = document.getElementById('btnAI');
+    btnAI.onclick = function () {
+      var term = document.getElementById('terminalOutput');
+      term.innerHTML = '<span class="text-cyan-400/70">$</span> <span class="text-gray-500">AI 引擎连接中...</span>';
+      btnAI.textContent = '⏳ 处理中...';
+      btnAI.disabled = true;
 
-      var yearBranch = P.getBranchNumber(lunarData.yearGZ);
-      var hourBranch = P.getBranchNumber(lunarData.timeGZ);
+      setTimeout(function () {
+        term.innerHTML =
+          '<span class="text-green-400/50">$</span> <span class="text-gray-600">[Mock] AI 断卦引擎尚未接入。</span>\n' +
+          '<span class="text-green-400/50">$</span> <span class="text-gray-600">[Mock] 占问：' + data.question + '</span>\n' +
+          '<span class="text-green-400/50">$</span> <span class="text-gray-600">[Mock] 本卦' + data.hexagrams[0].name +
+          '，' + data.hexagrams[0].desc + '</span>\n' +
+          '<span class="text-green-400/50">$</span> <span class="text-gray-600">[Mock] 此处将接入 LLM 流式输出...</span>';
+        btnAI.textContent = '⚡ 启动 AI 断卦';
+        btnAI.disabled = false;
+      }, 1200);
+    };
 
-      var result = P.calcMeihua(yearBranch, lunarData.lunarMonth, lunarData.lunarDay, hourBranch);
-
-      var originalLines = P.buildHexagram(result.upperNum, result.lowerNum);
-      var mutualLines = P.buildMutualHexagram(originalLines);
-      var changedLines = P.buildChangedHexagram(originalLines, result.changingLine);
-
-      renderResults(originalLines, mutualLines, changedLines, result.changingLine, lunarData);
-
-      var origInfo = P.getHexagramInfo(originalLines);
-      saveHistory({
-        iso: dateVal + 'T' + (timeVal || '12:00'),
-        hexName: origInfo.name,
-        hexIdx: origInfo.idx,
-      });
-
-    } catch (err) {
-      console.error(err);
-      showToast('计算出错：' + (err.message || '未知错误'));
+    // New reading button
+    var btnNew = document.getElementById('btnNewReading');
+    if (btnNew) {
+      btnNew.onclick = function () {
+        state.engine = null;
+        state.method = null;
+        state.params = { question: '', time: '', numbers: [] };
+        navigateTo('engine');
+      };
     }
   }
 
-  // ==================== EVENTS ====================
+  // ==================== GLOBAL NAVIGATION ====================
 
-  $btn.addEventListener('click', calculate);
+  function setupGlobalNav() {
+    // Back buttons are set up per-page
+    // All pages have back-btn with data-back attribute
 
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && document.activeElement && document.activeElement.closest('.glow-border')) {
-      calculate();
-    }
-  });
-
-  $clearHistory.addEventListener('click', clearHistory);
-
-  // ==================== SERVICE WORKER ====================
-
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(function () {});
+    // Engine page back buttons (none in current design, but handle if present)
+    var allBackBtns = document.querySelectorAll('.back-btn');
+    // These are set up individually in page setup functions
   }
 
   // ==================== INIT ====================
 
-  setNow();
-  renderHistory();
+  function init() {
+    // Page 1: Engine cards
+    setupEnginePage();
+
+    // Page 2: Method cards
+    setupMethodPage();
+
+    // Page 3: Params event wiring (panel show/hide is dynamic)
+    setupParamsEvents();
+
+    // Start on engine page
+    navigateTo('engine');
+
+    // Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    }
+  }
+
+  // Wait for DOM
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
 })(window.Paipan);
