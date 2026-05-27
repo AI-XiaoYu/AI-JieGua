@@ -321,6 +321,157 @@ body {
   background: #0a1f0a !important;
 }
 
+/* ==================== WHEEL PICKER ==================== */
+.wheel-picker {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.wheel-column {
+  flex: 1;
+  max-width: 80px;
+  text-align: center;
+}
+
+.wheel-label {
+  font-size: 10px;
+  color: #555;
+  letter-spacing: 0.1em;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.wheel-body {
+  position: relative;
+  height: 200px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #060606;
+  border: 1px solid #1a1a1a;
+}
+
+/* Center highlight bar */
+.wheel-highlight {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 40px;
+  transform: translateY(-50%);
+  border-top: 1px solid rgba(0, 255, 65, 0.3);
+  border-bottom: 1px solid rgba(0, 255, 65, 0.3);
+  background: rgba(0, 255, 65, 0.02);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Top/bottom gradient fades */
+.wheel-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 80px;
+  pointer-events: none;
+  z-index: 3;
+}
+.wheel-fade-top {
+  top: 0;
+  background: linear-gradient(to bottom, #060606 0%, transparent 100%);
+}
+.wheel-fade-bottom {
+  bottom: 0;
+  background: linear-gradient(to top, #060606 0%, transparent 100%);
+}
+
+/* Scroll area */
+.wheel-scroll {
+  position: relative;
+  height: 100%;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  -webkit-overflow-scrolling: touch;
+  z-index: 1;
+  padding: 80px 0;
+  scrollbar-width: none;
+}
+.wheel-scroll::-webkit-scrollbar { display: none; }
+
+/* Spacer before first / after last item */
+.wheel-spacer {
+  height: 0;
+  scroll-snap-align: none;
+}
+
+/* Each option */
+.wheel-item {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  scroll-snap-align: center;
+  font-size: 15px;
+  color: #444;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s;
+}
+.wheel-item.selected {
+  color: #00ff41;
+  font-weight: bold;
+  text-shadow: 0 0 8px rgba(0, 255, 65, 0.3);
+}
+
+/* Editable input below each wheel column */
+.wheel-input {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  background: #080808;
+  border: 1px solid #1a1a1a;
+  border-radius: 6px;
+  color: var(--matrix);
+  font-size: 13px;
+  text-align: center;
+  padding: 4px 2px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+.wheel-input:focus {
+  outline: none;
+  border-color: #1a5a1a;
+  box-shadow: 0 0 8px rgba(0, 255, 65, 0.08);
+}
+.wheel-input::-webkit-inner-spin-button,
+.wheel-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Number mode toggle buttons */
+.number-mode-btn {
+  flex: 1;
+  background: #080808;
+  border: 1px solid #1a1a1a;
+  border-radius: 8px;
+  color: #555;
+  font-size: 11px;
+  font-family: inherit;
+  padding: 8px 0;
+  cursor: pointer;
+  letter-spacing: 0.1em;
+  transition: all 0.2s;
+}
+.number-mode-btn.active {
+  background: #0a1a0a;
+  border-color: #1a5a1a;
+  color: var(--matrix);
+}
+.number-mode-btn:active {
+  background: #0d2d0d;
+}
+
 /* ==================== TOAST ==================== */
 .toast {
   position: fixed;
@@ -353,6 +504,106 @@ body {
   transition: background 0.15s;
 }
 .history-item:active { background: #111; }
+
+/* ==================== BOOT DISCLAIMER MODAL ==================== */
+#boot-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  transition: opacity 0.6s ease;
+}
+#boot-modal.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.boot-overlay {
+  position: absolute;
+  inset: 0;
+  background: #000;
+}
+
+.boot-box {
+  position: relative;
+  z-index: 1;
+  max-width: 380px;
+  width: 90vw;
+  background: #060606;
+  border: 1px solid #1a2a1a;
+  border-radius: 12px;
+  padding: 28px 22px 22px;
+  text-align: center;
+}
+
+.boot-header {
+  font-family: "SF Mono", "Fira Code", "Courier New", monospace;
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--matrix);
+  letter-spacing: 0.15em;
+  margin-bottom: 20px;
+  text-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+}
+
+.boot-blink {
+  animation: bootBlink 1.2s ease-in-out infinite;
+}
+@keyframes bootBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+.boot-body {
+  text-align: left;
+  font-size: 11px;
+  color: #666;
+  line-height: 1.8;
+  margin-bottom: 24px;
+}
+.boot-body p {
+  margin: 0 0 6px;
+}
+.boot-highlight {
+  color: var(--matrix) !important;
+  font-weight: bold;
+  text-shadow: 0 0 6px rgba(0, 255, 65, 0.2);
+}
+
+.boot-btn {
+  display: inline-block;
+  background: #0a1a0a;
+  border: 1px solid #1a5a1a;
+  color: var(--matrix);
+  font-family: "SF Mono", "Fira Code", "Courier New", monospace;
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 0.1em;
+  padding: 12px 28px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  text-shadow: 0 0 8px rgba(0, 255, 65, 0.3);
+}
+.boot-btn:active {
+  background: #0d2d0d;
+  border-color: var(--matrix);
+  box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+  transform: scale(0.97);
+}
+
+/* ==================== ENGINE COPYRIGHT ==================== */
+.engine-copyright {
+  text-align: center;
+  font-size: 9px;
+  color: #333;
+  letter-spacing: 0.05em;
+  padding: 16px 12px 0;
+  line-height: 1.6;
+}
 
 /* Input focus overrides */
 input:focus {

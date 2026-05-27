@@ -146,8 +146,20 @@
 
     if (state.method === 'time') {
       panelTime.classList.remove('hidden');
+      initWheelPicker();
+      resetWheelToNow();
     } else if (state.method === 'number') {
       panelNumber.classList.remove('hidden');
+      // Reset to two-number mode
+      _numMode = 'two';
+      var btns = document.querySelectorAll('#numberModeToggle .number-mode-btn');
+      for (var j = 0; j < btns.length; j++) {
+        btns[j].classList.toggle('active', btns[j].getAttribute('data-num-mode') === 'two');
+      }
+      document.getElementById('groupNum3').style.display = 'none';
+      document.getElementById('paramNum1').value = '';
+      document.getElementById('paramNum2').value = '';
+      document.getElementById('paramNum3').value = '';
     }
 
     // Back buttons
@@ -159,19 +171,152 @@
     }
   }
 
+  // ==================== WHEEL PICKER ====================
+
+  var _wheelReady = false;
+
+  function initWheelPicker() {
+    if (_wheelReady) return;
+    var yearScroll = document.getElementById('wheelYear');
+    var monthScroll = document.getElementById('wheelMonth');
+    var dayScroll = document.getElementById('wheelDay');
+    var hourScroll = document.getElementById('wheelHour');
+    if (!yearScroll || !monthScroll || !dayScroll || !hourScroll) return;
+    _wheelReady = true;
+
+    // Populate years (1940-2060)
+    for (var y = 1940; y <= 2060; y++) {
+      var item = document.createElement('div');
+      item.className = 'wheel-item';
+      item.textContent = y;
+      item.setAttribute('data-value', y);
+      yearScroll.appendChild(item);
+    }
+    // Months 1-12
+    for (var m = 1; m <= 12; m++) {
+      var item = document.createElement('div');
+      item.className = 'wheel-item';
+      item.textContent = m;
+      item.setAttribute('data-value', m);
+      monthScroll.appendChild(item);
+    }
+    // Days 1-31
+    for (var d = 1; d <= 31; d++) {
+      var item = document.createElement('div');
+      item.className = 'wheel-item';
+      item.textContent = d;
+      item.setAttribute('data-value', d);
+      dayScroll.appendChild(item);
+    }
+    // Hours 0-23
+    for (var h = 0; h <= 23; h++) {
+      var item = document.createElement('div');
+      item.className = 'wheel-item';
+      item.textContent = h;
+      item.setAttribute('data-value', h);
+      hourScroll.appendChild(item);
+    }
+
+    [yearScroll, monthScroll, dayScroll, hourScroll].forEach(function (el) {
+      el.addEventListener('scroll', function () { updateWheelSelection(el); });
+    });
+
+    // Input → wheel sync
+    var fields = [
+      { scroll: yearScroll,  input: document.getElementById('wheelInputYear'),  base: 1940 },
+      { scroll: monthScroll, input: document.getElementById('wheelInputMonth'), base: 1 },
+      { scroll: dayScroll,   input: document.getElementById('wheelInputDay'),   base: 1 },
+      { scroll: hourScroll,  input: document.getElementById('wheelInputHour'),  base: 0 },
+    ];
+    fields.forEach(function (f) {
+      if (!f.input) return;
+      f.input.addEventListener('change', function () {
+        var v = parseInt(this.value);
+        if (isNaN(v)) return;
+        v = Math.max(parseInt(this.min), Math.min(parseInt(this.max), v));
+        this.value = v;
+        scrollWheelTo(f.scroll, v, f.base);
+      });
+    });
+
+    resetWheelToNow();
+  }
+
+  function scrollWheelTo(scrollEl, value, baseOffset) {
+    var index = value - baseOffset;
+    scrollEl.scrollTop = index * 40;
+    updateWheelSelection(scrollEl);
+  }
+
+  function updateWheelSelection(scrollEl) {
+    var idx = Math.round(scrollEl.scrollTop / 40);
+    var items = scrollEl.querySelectorAll('.wheel-item');
+    for (var i = 0; i < items.length; i++) {
+      items[i].classList.toggle('selected', i === idx);
+    }
+    // Two-way sync: update the input below the wheel
+    var sel = items[idx];
+    if (sel) {
+      var inputId = 'wheelInput' + scrollEl.id.replace('wheel', '');
+      var input = document.getElementById(inputId);
+      if (input && document.activeElement !== input) {
+        input.value = sel.getAttribute('data-value');
+      }
+    }
+  }
+
+  function resetWheelToNow() {
+    if (!_wheelReady) return;
+    var now = new Date();
+    scrollWheelTo(document.getElementById('wheelYear'), now.getFullYear(), 1940);
+    scrollWheelTo(document.getElementById('wheelMonth'), now.getMonth() + 1, 1);
+    scrollWheelTo(document.getElementById('wheelDay'), now.getDate(), 1);
+    scrollWheelTo(document.getElementById('wheelHour'), now.getHours(), 0);
+  }
+
+  function getWheelValues() {
+    function val(id) {
+      var sel = document.getElementById(id).querySelector('.wheel-item.selected');
+      return sel ? parseInt(sel.getAttribute('data-value')) : 0;
+    }
+    return {
+      year: val('wheelYear'),
+      month: val('wheelMonth'),
+      day: val('wheelDay'),
+      hour: val('wheelHour')
+    };
+  }
+
+  // ==================== NUMBER MODE TOGGLE ====================
+
+  var _numMode = 'two';
+
+  function setupNumberModeToggle() {
+    var buttons = document.querySelectorAll('#numberModeToggle .number-mode-btn');
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].addEventListener('click', function () {
+        _numMode = this.getAttribute('data-num-mode');
+        var btns = document.querySelectorAll('#numberModeToggle .number-mode-btn');
+        for (var j = 0; j < btns.length; j++) {
+          btns[j].classList.toggle('active', btns[j].getAttribute('data-num-mode') === _numMode);
+        }
+        document.getElementById('groupNum3').style.display = _numMode === 'three' ? '' : 'none';
+      });
+    }
+    // Default: two-number mode hides third input
+    document.getElementById('groupNum3').style.display = 'none';
+  }
+
+  // ==================== PAGE 3 EVENTS ====================
+
   function setupParamsEvents() {
+    // Number mode toggle (两组数 / 三组数)
+    setupNumberModeToggle();
+
     // "此刻" button - fill current time
     var btnNow = document.getElementById('btnNow');
     if (btnNow) {
-      btnNow.onclick = function () {
-        var now = new Date();
-        var iso = now.getFullYear() + '-' +
-          String(now.getMonth() + 1).padStart(2, '0') + '-' +
-          String(now.getDate()).padStart(2, '0') + 'T' +
-          String(now.getHours()).padStart(2, '0') + ':' +
-          String(now.getMinutes()).padStart(2, '0');
-        document.getElementById('paramTime').value = iso;
-      };
+      btnNow.onclick = function () { resetWheelToNow(); };
     }
 
     // Submit button
@@ -186,14 +331,25 @@
         state.params.question = question;
 
         if (state.method === 'time') {
-          state.params.time = document.getElementById('paramTime').value;
+          var v = getWheelValues();
+          state.params.time = v.year + '-' + String(v.month).padStart(2,'0') + '-' + String(v.day).padStart(2,'0') + 'T' + String(v.hour).padStart(2,'0') + ':00';
         } else if (state.method === 'number') {
           var n1 = parseInt(document.getElementById('paramNum1').value) || 0;
           var n2 = parseInt(document.getElementById('paramNum2').value) || 0;
-          var n3 = parseInt(document.getElementById('paramNum3').value) || 0;
-          if (!n1 || !n2 || !n3) {
-            showToast('请输入三个有效数字');
+          if (!n1 || !n2) {
+            showToast('请输入两个有效数字');
             return;
+          }
+          var n3;
+          if (_numMode === 'two') {
+            n3 = (n1 + n2) % 6;
+            if (n3 === 0) n3 = 6;
+          } else {
+            n3 = parseInt(document.getElementById('paramNum3').value) || 0;
+            if (!n3) {
+              showToast('请输入动爻数');
+              return;
+            }
           }
           state.params.numbers = [n1, n2, n3];
         }

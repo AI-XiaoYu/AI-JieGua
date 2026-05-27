@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="排盘">
+  <meta name="apple-mobile-web-app-title" content="Scale OS">
   <meta name="theme-color" content="#0a0a0a">
-  <meta name="description" content="梅花易数排盘系统 - 纯本地运行">
+  <meta name="description" content="游鳞算力中枢 (Scale OS) - 纯本地运行">
   <link rel="manifest" href="manifest.json">
-  <title>排盘系统</title>
+  <title>游鳞算力中枢 (Scale OS)</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -44,13 +44,32 @@
   <!-- Toast -->
   <div id="toast" class="toast"></div>
 
+  <!-- ==================== BOOT MODAL ==================== -->
+  <div id="boot-modal">
+    <div class="boot-overlay"></div>
+    <div class="boot-box">
+      <div class="boot-header">
+        <span class="boot-blink">&#9670;</span> SCALE OS BOOT WARNING <span class="boot-blink">&#9670;</span>
+      </div>
+      <div class="boot-body">
+        <p>算法推演仅提供时空信息建模与哲学参考，绝非绝对因果。命运轨迹由真实行动决定。</p>
+        <p>AI 引擎输出存在幻觉风险，不构成任何实质性指导。</p>
+        <p>系统秉持本地优先，数据高度加密且不设中央数据库。</p>
+        <p class="boot-highlight">最终解释权与系统最高控制权，归属于小鱼。</p>
+      </div>
+      <button id="boot-accept-btn" class="boot-btn">[ 我已理解并接管系统 ]</button>
+    </div>
+  </div>
+
   <!-- ==================== APP SHELL ==================== -->
   <div id="app" class="flex-1 relative max-w-md mx-auto w-full">
 
     <!-- ========== PAGE 1: 引擎选择 ========== -->
     <div id="page-engine" class="page active">
       <header class="px-5 pt-8 pb-6 text-center">
-        <h1 class="text-2xl font-bold tracking-widest glow-text">&#9775; 排 盘 系 统 &#9775;</h1>
+        <h1 class="text-2xl font-bold tracking-widest glow-text">&#9775; 游 鳞 算 力 中 枢 &#9775;</h1>
+        <p class="text-xs text-gray-500 mt-1 tracking-widest">SCALE OS</p>
+        <p class="text-[9px] text-gray-700 mt-0.5 tracking-wider">Build: Beta-1.0.0</p>
         <p class="text-xs text-gray-600 mt-2 tracking-wider">选择推演引擎</p>
       </header>
       <div class="px-4 space-y-3">
@@ -89,6 +108,11 @@
             </div>
             <div class="text-[10px] text-yellow-600/60 border border-yellow-600/30 rounded px-2 py-0.5">研发中</div>
           </div>
+        </div>
+
+        <!-- Copyright footer (Page 1 only) -->
+        <div class="engine-copyright">
+          &copy; 2026 小鱼 - All Rights Reserved. 测试版仅供个人推演与学术交流，发布前严禁任何形式的商业化运作最终解释权与系统最高控制权，归属于小鱼；
         </div>
       </div>
     </div>
@@ -147,20 +171,67 @@
 
         <!-- 时间起卦面板 -->
         <div id="panel-time" class="param-panel hidden">
-          <label class="block text-xs text-gray-500 mb-1.5 tracking-wider">&#9200; 选择时间</label>
-          <div class="flex gap-2 mb-3">
-            <input type="datetime-local" id="paramTime"
-              class="flex-1 bg-black border border-[#1a3a1a] rounded-lg px-4 py-3.5 text-green-400 text-base transition-colors focus:outline-none focus:border-[#00ff41]"
-              style="color-scheme:dark">
-            <button id="btnNow" class="btn-cyber px-4 py-3.5 rounded-lg text-xs font-bold tracking-wider whitespace-nowrap">
-              &#9200; 此刻
-            </button>
+          <label class="block text-xs text-gray-500 mb-1.5 tracking-wider">&#9200; 滚动选择时间</label>
+
+          <!-- Wheel Picker -->
+          <div id="wheelPicker" class="wheel-picker mb-3">
+            <div class="wheel-column" data-field="year">
+              <div class="wheel-label">年</div>
+              <div class="wheel-body">
+                <div class="wheel-fade wheel-fade-top"></div>
+                <div class="wheel-fade wheel-fade-bottom"></div>
+                <div class="wheel-highlight"></div>
+                <div class="wheel-scroll" id="wheelYear"></div>
+              </div>
+              <input type="number" class="wheel-input" id="wheelInputYear" min="1940" max="2060" inputmode="numeric" placeholder="年">
+            </div>
+            <div class="wheel-column" data-field="month">
+              <div class="wheel-label">月</div>
+              <div class="wheel-body">
+                <div class="wheel-fade wheel-fade-top"></div>
+                <div class="wheel-fade wheel-fade-bottom"></div>
+                <div class="wheel-highlight"></div>
+                <div class="wheel-scroll" id="wheelMonth"></div>
+              </div>
+              <input type="number" class="wheel-input" id="wheelInputMonth" min="1" max="12" inputmode="numeric" placeholder="月">
+            </div>
+            <div class="wheel-column" data-field="day">
+              <div class="wheel-label">日</div>
+              <div class="wheel-body">
+                <div class="wheel-fade wheel-fade-top"></div>
+                <div class="wheel-fade wheel-fade-bottom"></div>
+                <div class="wheel-highlight"></div>
+                <div class="wheel-scroll" id="wheelDay"></div>
+              </div>
+              <input type="number" class="wheel-input" id="wheelInputDay" min="1" max="31" inputmode="numeric" placeholder="日">
+            </div>
+            <div class="wheel-column" data-field="hour">
+              <div class="wheel-label">时</div>
+              <div class="wheel-body">
+                <div class="wheel-fade wheel-fade-top"></div>
+                <div class="wheel-fade wheel-fade-bottom"></div>
+                <div class="wheel-highlight"></div>
+                <div class="wheel-scroll" id="wheelHour"></div>
+              </div>
+              <input type="number" class="wheel-input" id="wheelInputHour" min="0" max="23" inputmode="numeric" placeholder="时">
+            </div>
           </div>
+
+          <button id="btnNow" class="btn-cyber w-full py-3 rounded-lg text-xs font-bold tracking-wider">
+            &#9200; 定位至此刻
+          </button>
         </div>
 
         <!-- 报数起卦面板 -->
         <div id="panel-number" class="param-panel hidden">
-          <label class="block text-xs text-gray-500 mb-1.5 tracking-wider">&#128290; 输入三个数字（1-999）</label>
+          <label class="block text-xs text-gray-500 mb-1.5 tracking-wider">&#128290; 输入数字起卦</label>
+
+          <!-- 二组数 / 三组数 切换 -->
+          <div id="numberModeToggle" class="flex gap-1 mb-3">
+            <button class="number-mode-btn active" data-num-mode="two">两组数</button>
+            <button class="number-mode-btn" data-num-mode="three">三组数</button>
+          </div>
+
           <div class="flex gap-2">
             <div class="flex-1 text-center">
               <input type="number" id="paramNum1" min="1" max="999"
@@ -174,7 +245,7 @@
                 placeholder="下卦">
               <span class="text-[10px] text-gray-600 mt-1 block">下卦数</span>
             </div>
-            <div class="flex-1 text-center">
+            <div class="flex-1 text-center" id="groupNum3">
               <input type="number" id="paramNum3" min="1" max="999"
                 class="w-full bg-black border border-[#1a3a1a] rounded-lg px-1 py-3.5 text-green-400 text-base text-center transition-colors focus:outline-none focus:border-[#00ff41]"
                 placeholder="动爻">
@@ -194,7 +265,7 @@
     <div id="page-dashboard" class="page">
       <!-- Header bar -->
       <div class="flex items-center justify-between px-4 pt-4 pb-2">
-        <button id="btnNewReading" class="back-btn">&larr; 新排盘</button>
+        <button id="btnNewReading" class="back-btn">&larr; 新推演</button>
         <span class="text-[10px] text-gray-600 tracking-wider">DASHBOARD</span>
         <div style="width:52px"></div>
       </div>
@@ -271,10 +342,10 @@
   </div>
 
   <footer class="text-center py-3 text-[10px] text-gray-700 tracking-wider safe-bottom">
-    纯本地运行 &middot; 不联网 &middot; 无追踪
+    Scale OS &middot; 纯本地运行 &middot; 不联网 &middot; 无追踪
   </footer>
 
   <script src="core.js"></script>
-  <script src="app.js"></script>
+  <script type="module" src="./js/main.js"></script>
 </body>
 </html>

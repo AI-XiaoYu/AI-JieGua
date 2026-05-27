@@ -1,7 +1,7 @@
 {
-  "name": "排盘系统",
-  "short_name": "排盘",
-  "description": "梅花易数排盘系统 - 纯本地运行",
+  "name": "游鳞算力中枢 (Scale OS)",
+  "short_name": "Scale OS",
+  "description": "游鳞算力中枢 (Scale OS) - 纯本地运行",
   "start_url": ".",
   "display": "standalone",
   "orientation": "portrait",
