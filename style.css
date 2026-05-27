@@ -43,16 +43,20 @@ body {
   position: relative;
   min-height: calc(100vh - 28px);
   min-height: calc(100dvh - 28px);
+  max-width: 600px;
+  margin: 0 auto;
+  border-left: 1px solid rgba(0, 255, 65, 0.1);
+  border-right: 1px solid rgba(0, 255, 65, 0.1);
 }
 
 .page {
-  display: none;
+  display: none !important;
   animation: none;
   padding-bottom: 12px;
 }
 
 .page.active {
-  display: block;
+  display: block !important;
   animation: pageFadeIn 0.35s ease both;
 }
 
