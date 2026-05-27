@@ -1,0 +1,187 @@
+:root {
+  --matrix: #00ff41;
+  --cyan: #00d4ff;
+  --bg: #0a0a0a;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--bg);
+  font-family: "SF Mono", "Fira Code", "Courier New", monospace;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #000; }
+::-webkit-scrollbar-thumb { background: #1a3a1a; border-radius: 2px; }
+
+/* Glow effects */
+.glow-text {
+  text-shadow: 0 0 10px rgba(0, 255, 65, 0.5), 0 0 30px rgba(0, 255, 65, 0.2);
+}
+.glow-cyan {
+  text-shadow: 0 0 10px rgba(0, 212, 255, 0.5), 0 0 30px rgba(0, 212, 255, 0.2);
+}
+.glow-border {
+  box-shadow: 0 0 15px rgba(0, 255, 65, 0.1), inset 0 0 15px rgba(0, 255, 65, 0.02);
+}
+
+/* Input styles */
+input[type="date"],
+input[type="time"] {
+  color-scheme: dark;
+  -webkit-appearance: none;
+  appearance: none;
+}
+input::-webkit-calendar-picker-indicator {
+  filter: invert(1) sepia(100%) saturate(500%) hue-rotate(70deg);
+  cursor: pointer;
+  opacity: 0.7;
+}
+input:focus {
+  outline: none;
+  border-color: var(--matrix) !important;
+  box-shadow: 0 0 20px rgba(0, 255, 65, 0.15);
+}
+
+/* Button */
+.btn-calc {
+  background: linear-gradient(135deg, #0d3d0d 0%, #0a2a0a 100%);
+  border: 1px solid #1a5a1a;
+  transition: all 0.2s ease;
+  letter-spacing: 0.1em;
+}
+.btn-calc:active {
+  transform: scale(0.97);
+  background: #0a3a0a;
+  box-shadow: 0 0 30px rgba(0, 255, 65, 0.2);
+}
+
+/* Hexagram line (yao) */
+.yao-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  margin: 4px 0;
+  transition: all 0.3s ease;
+}
+.yao-yang {
+  width: 100%;
+  max-width: 200px;
+  height: 8px;
+  background: var(--matrix);
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgba(0, 255, 65, 0.4);
+}
+.yao-yin {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  width: 100%;
+  max-width: 200px;
+}
+.yao-yin-half {
+  width: 80px;
+  height: 8px;
+  background: var(--matrix);
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgba(0, 255, 65, 0.4);
+}
+.yao-changing .yao-yang,
+.yao-changing .yao-yin-half {
+  background: var(--cyan);
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.6);
+  animation: pulse-line 1.5s ease-in-out infinite;
+}
+@keyframes pulse-line {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Markers */
+.yao-marker {
+  font-size: 10px;
+  color: #555;
+  width: 32px;
+  text-align: right;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+/* Hexagram card */
+.hex-card {
+  background: #0d0d0d;
+  border: 1px solid #1a2a1a;
+  border-radius: 12px;
+  padding: 20px 16px;
+  transition: border-color 0.3s ease;
+}
+.hex-card:hover {
+  border-color: #1a4a1a;
+}
+
+/* Pillar grid */
+.pillar-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+@media (max-width: 380px) {
+  .pillar-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a0a0a;
+  border: 1px solid #5a1a1a;
+  color: #ff4444;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 999;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+.toast.show {
+  opacity: 1;
+}
+
+/* History */
+.history-item {
+  border-bottom: 1px solid #111;
+  padding: 10px 0;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.history-item:active {
+  background: #111;
+}
+
+/* Tab */
+.tab-btn {
+  padding: 8px 16px;
+  border-bottom: 2px solid transparent;
+  color: #555;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+.tab-btn.active {
+  color: var(--matrix);
+  border-bottom-color: var(--matrix);
+}
